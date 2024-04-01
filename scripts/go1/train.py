@@ -204,6 +204,9 @@ def train_go1(headless=True):
     Cfg.commands.binary_phases = True
     Cfg.commands.gaitwise_curricula = True
 
+    Cfg.viewer.pos = [50, 50, 8]
+    Cfg.viewer.lookat = [55, 55, 3]
+
     env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=False, cfg=Cfg)
 
     # log the experiment parameters

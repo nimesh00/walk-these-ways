@@ -35,6 +35,7 @@ def load_env(path, headless=False):
         print(pkl_cfg.keys())
         cfg = pkl_cfg["Cfg"]
         print(cfg.keys())
+        # print("Number of observations: ", cfg['env']['num_observations'])
 
         for key, value in cfg.items():
             if hasattr(Cfg, key):
@@ -69,6 +70,9 @@ def load_env(path, headless=False):
     Cfg.domain_rand.randomize_lag_timesteps = True
     Cfg.control.control_type = "P"
 
+    Cfg.viewer.pos = [10, 0, 5]
+    Cfg.viewer.lookat = [11, 2, 3]
+
     from go2_gym.envs.wrappers.history_wrapper import HistoryWrapper
 
     env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=False, cfg=Cfg)
@@ -91,7 +95,8 @@ def play_go2(headless=True):
     import glob
     import os
 
-    label = "runs/gait-conditioned-agility/2023-10-14/train/065107.514752"
+    # label = "runs/gait-conditioned-agility/2024-02-18/train/211214.073611"
+    label = "runs/gait-conditioned-agility/2023-10-18/train/003846.138687"
 
     env, policy = load_env(label, headless=headless)
 
@@ -102,6 +107,7 @@ def play_go2(headless=True):
              "pacing": [0, 0, 0.5]}
 
     x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 1.5, 0.0, 0.6
+    # x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.0, 0.0, 0.0
     body_height_cmd = 0.0
     step_frequency_cmd = 3.0
     gait = torch.tensor(gaits["trotting"])
@@ -109,6 +115,8 @@ def play_go2(headless=True):
     pitch_cmd = 0.0
     roll_cmd = 0.0
     stance_width_cmd = 0.25
+    # stance_length_cmd = 0.05
+    # aux_reward_cmd = 0.0
 
     measured_x_vels = np.zeros(num_eval_steps)
     target_x_vels = np.ones(num_eval_steps) * x_vel_cmd
@@ -116,15 +124,20 @@ def play_go2(headless=True):
 
     obs = env.reset()
 
+    print("DOF Names:", env.dof_names)
+    print("Num actuated DOFs: ", env.num_actuated_dof)
+    print("DOF pos: ", env.dof_pos[:, :env.num_actuated_dof])
+    print("Num eval steps: ", num_eval_steps)
+
     for i in tqdm(range(num_eval_steps)):
         with torch.no_grad():
             actions = policy(obs)
 
-        if i > 300:
-            pitch_cmd = 0.7
-            x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.0, 0.0, -0.1
-            footswing_height_cmd = 0.0
-            body_height_cmd = 0.1
+        # if i > 300:
+        #     pitch_cmd = 0.7
+        #     x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.0, 0.0, -0.1
+        #     footswing_height_cmd = 0.0
+        #     body_height_cmd = 0.1
 
 
         env.commands[:, 0] = x_vel_cmd
@@ -138,6 +151,8 @@ def play_go2(headless=True):
         env.commands[:, 10] = pitch_cmd
         env.commands[:, 11] = roll_cmd
         env.commands[:, 12] = stance_width_cmd
+        # env.commands[:, 13] = stance_length_cmd
+        # env.commands[:, 14] = aux_reward_cmd
         obs, rew, done, info = env.step(actions)
 
         measured_x_vels[i] = env.base_lin_vel[0, 0]

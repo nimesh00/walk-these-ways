@@ -49,7 +49,7 @@ def train_go2(headless=True):
     Cfg.domain_rand.gravity_range = [-1.0, 1.0]
     Cfg.domain_rand.gravity_rand_interval_s = 8.0
     Cfg.domain_rand.gravity_impulse_duration = 0.99
-    Cfg.env.priv_observe_gravity = False
+    Cfg.env.priv_observe_gravity = True
     Cfg.domain_rand.randomize_com_displacement = False
     Cfg.domain_rand.com_displacement_range = [-0.15, 0.15]
     Cfg.env.priv_observe_com_displacement = False
@@ -68,14 +68,14 @@ def train_go2(headless=True):
     Cfg.env.priv_observe_Kp_factor = False
     Cfg.domain_rand.randomize_Kd_factor = False
     Cfg.env.priv_observe_Kd_factor = False
-    Cfg.env.priv_observe_body_velocity = False
+    Cfg.env.priv_observe_body_velocity = True
     Cfg.env.priv_observe_body_height = False
     Cfg.env.priv_observe_desired_contact_states = False
     Cfg.env.priv_observe_contact_forces = False
     Cfg.env.priv_observe_foot_displacement = False
     Cfg.env.priv_observe_gravity_transformed_foot_displacement = False
 
-    Cfg.env.num_privileged_obs = 2
+    Cfg.env.num_privileged_obs = 8
     Cfg.env.num_observation_history = 30
     Cfg.reward_scales.feet_contact_forces = 0.0
 
@@ -114,16 +114,18 @@ def train_go2(headless=True):
 
     Cfg.commands.resampling_time = 10
 
-    Cfg.reward_scales.feet_slip = -0.04
-    Cfg.reward_scales.action_smoothness_1 = -0.1
-    Cfg.reward_scales.action_smoothness_2 = -0.1
-    Cfg.reward_scales.dof_vel = -1e-4
+    # Cfg.reward_scales.feet_slip = -0.04
+    Cfg.reward_scales.feet_slip = -8.e-4
+    Cfg.reward_scales.action_smoothness_1 = -2e-3
+    Cfg.reward_scales.action_smoothness_2 = -2e-3
+    Cfg.reward_scales.dof_vel = -2e-5
     Cfg.reward_scales.dof_pos = -0.0
     Cfg.reward_scales.jump = 10.0
-    Cfg.reward_scales.base_height = 0.0
-    Cfg.rewards.base_height_target = 0.30
+    Cfg.reward_scales.base_height = -0.2
+    Cfg.rewards.base_height_target = 0.34
     Cfg.reward_scales.estimation_bonus = 0.0
-    Cfg.reward_scales.raibert_heuristic = -10.0
+    # Cfg.reward_scales.raibert_heuristic = -10.0
+    Cfg.reward_scales.raibert_heuristic = -0.2
     Cfg.reward_scales.feet_impact_vel = -0.0
     Cfg.reward_scales.feet_clearance = -0.0
     Cfg.reward_scales.feet_clearance_cmd = -0.0
@@ -204,16 +206,21 @@ def train_go2(headless=True):
     Cfg.commands.binary_phases = True
     Cfg.commands.gaitwise_curricula = True
 
-    env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=False, cfg=Cfg)
+    Cfg.env.num_envs = 4000
+
+    Cfg.viewer.pos = [50, 50, 8]
+    Cfg.viewer.lookat = [55, 55, 3]
+
+    env = VelocityTrackingEasyEnv(sim_device='cuda:2', headless=False, cfg=Cfg)
 
     # log the experiment parameters
     logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
                       Cfg=vars(Cfg))
 
     env = HistoryWrapper(env)
-    gpu_id = 0
+    gpu_id = 2
     runner = Runner(env, device=f"cuda:{gpu_id}")
-    runner.learn(num_learning_iterations=100000, init_at_random_ep_len=True, eval_freq=100)
+    runner.learn(num_learning_iterations=10000, init_at_random_ep_len=True, eval_freq=100)
 
 
 if __name__ == '__main__':
@@ -253,4 +260,4 @@ if __name__ == '__main__':
                 """, filename=".charts.yml", dedent=True)
 
     # to see the environment rendering, set headless=False
-    train_go2(headless=False)
+    train_go2(headless=True)

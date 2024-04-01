@@ -169,7 +169,7 @@ def run_env(render=False, headless=False):
 
     # 5 times per second
 
-    Cfg.env.num_envs = 3
+    Cfg.env.num_envs = 1
     Cfg.domain_rand.push_interval_s = 1
     Cfg.terrain.num_rows = 3
     Cfg.terrain.num_cols = 5

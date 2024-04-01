@@ -167,12 +167,15 @@ if __name__ == '__main__':
 
     # r.set_to(low, high, value=1.0)
 
-    adjacents = r.get_local_bins(np.array([10, ]), range=0.5)
+    adjacents = r.get_local_bins(np.array([10, ]), ranges=0.5)
     for adjacent in adjacents:
         adjacent_inds = np.array(adjacent.nonzero()[0])
         print(adjacent_inds)
-        r.update(bin_inds=adjacent_inds, lin_vel_rewards=np.ones_like(adjacent_inds),
-                 ang_vel_rewards=np.ones_like(adjacent_inds), lin_vel_threshold=0.0, ang_vel_threshold=0.0,
+        # r.update(bin_inds=adjacent_inds, lin_vel_rewards=np.ones_like(adjacent_inds),
+        #          ang_vel_rewards=np.ones_like(adjacent_inds), lin_vel_threshold=0.0, ang_vel_threshold=0.0,
+        #          local_range=0.5)
+        r.update(bin_inds=adjacent_inds, task_rewards=np.ones_like(adjacent_inds), 
+                 success_thresholds=np.ones_like(adjacent_inds), 
                  local_range=0.5)
 
     samples, bins = r.sample(10_000)
