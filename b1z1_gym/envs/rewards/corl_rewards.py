@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from b1z1_gym.utils.math import quat_apply_yaw, wrap_to_pi, get_scale_shift
+from b1z1_gym.utils.math_utils import quat_apply_yaw, wrap_to_pi, get_scale_shift
 from isaacgym.torch_utils import *
 from isaacgym import gymapi
 

@@ -75,8 +75,6 @@ class BaseTask(gym.Env):
         self.enable_viewer_sync = True
         self.viewer = None
 
-        # Can add more keyboard interaction options from DWBC:LaUPfMaL setup
-        
         # if running with a viewer, set up keyboard shortcuts and camera
         if self.headless == False:
             # subscribe to keyboard shortcuts
@@ -107,7 +105,7 @@ class BaseTask(gym.Env):
     def step(self, actions):
         raise NotImplementedError
 
-    def render(self, sync_frame_time=True):
+    def render_gui(self, sync_frame_time=True):
         if self.viewer:
             # check for window closed
             if self.gym.query_viewer_has_closed(self.viewer):

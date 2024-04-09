@@ -5,7 +5,7 @@ from params_proto import Meta
 from b1z1_gym.envs.base.legged_robot_config import Cfg
 
 
-def b1z1_config(Cnfg: Union[Cfg, Meta]):
+def config_b1z1(Cnfg: Union[Cfg, Meta]):
     _ = Cnfg.init_state
 
     _.pos = [0.0, 0.0, 0.8]  # x,y,z [m]
@@ -39,11 +39,18 @@ def b1z1_config(Cnfg: Union[Cfg, Meta]):
         'FL_calf_joint': -1.5,  # [rad]
         'RL_calf_joint': -1.6,  # [rad]
         'FR_calf_joint': -1.5,  # [rad]
-        'RR_calf_joint': -1.6  # [rad]
+        'RR_calf_joint': -1.6,  # [rad]
+
+        'joint1': 0.0,  # [rad]
+        'joint2': 0.0,  # [rad]
+        'joint3': 0.0,  # [rad]
+        'joint4': 0.0,  # [rad]
+        'joint5': 0.0,  # [rad]
+        'joint6': 0.0,  # [rad]
     }
     _ = Cnfg.control
     _.control_type = 'P'
-    _.stiffness = {'joint': 100.}  # [N*m/rad]
+    _.stiffness = {'joint': 50.}  # [N*m/rad]
     _.damping = {'joint': 2.5}  # [N*m*s/rad]
     # action scale: target angle = actionScale * action + defaultAngle
     _.action_scale = 0.25
@@ -56,6 +63,7 @@ def b1z1_config(Cnfg: Union[Cfg, Meta]):
     _.foot_name = "foot"
     _.penalize_contacts_on = ["thigh", "calf"]
     _.terminate_after_contacts_on = ["base"]
+    # _.terminate_after_contacts_on = ["base", "link01", "link02", "link03", "link04", "link05", "link06"]
     _.self_collisions = 0  # 1 to disable, 0 to enable...bitwise filter
     _.flip_visual_attachments = False
     _.fix_base_link = False
@@ -82,7 +90,7 @@ def b1z1_config(Cnfg: Union[Cfg, Meta]):
     _.curriculum = False
 
     _ = Cnfg.env
-    _.num_observations = 42
+    _.num_observations = 42 + 24
     _.observe_vel = False
     _.num_envs = 4096
 

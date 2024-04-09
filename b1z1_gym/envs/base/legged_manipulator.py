@@ -28,7 +28,7 @@
 #
 # Copyright (c) 2021 ETH Zurich, Nikita Rudin
 
-from legged_gym import LEGGED_GYM_ROOT_DIR, envs
+# from legged_gym import LEGGED_GYM_ROOT_DIR, envs
 from time import time
 from warnings import WarningMessage
 import numpy as np
@@ -42,7 +42,8 @@ import torch
 from torch import Tensor
 from typing import Tuple, Dict
 
-from b1z1_gym import LEGGED_GYM_ROOT_DIR
+# from b1z1_gym import LEGGED_GYM_ROOT_DIR
+from b1z1_gym import MINI_GYM_ROOT_DIR
 from b1z1_gym.envs.base.base_task import BaseTask
 from b1z1_gym.utils.terrain import Terrain
 from b1z1_gym.utils.math import quat_apply_yaw, wrap_to_pi, torch_rand_sqrt_float
@@ -65,6 +66,7 @@ class LeggedManipulator(BaseTask):
             headless (bool): Run without rendering if True
         """
         self.cfg = cfg
+        self.eval_cfg = eval_cfg
         self.sim_params = sim_params
         self.height_samples = None
         self.debug_viz = True
@@ -72,7 +74,7 @@ class LeggedManipulator(BaseTask):
         self.initial_dynamics_dict = initial_dynamics_dict
         self._parse_cfg(self.cfg)
         if eval_cfg is not None: self._parse_cfg(eval_cfg) # Shouldn't this be called after the first call to self._parse_cfg()???
-        super().__init__(self.cfg, sim_params, physics_engine, sim_device, headless, self.eval_cfg, self.initial_dynamics_dict)
+        super().__init__(self.cfg, sim_params, physics_engine, sim_device, headless, self.eval_cfg)
 
         if not self.headless:
             self.set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat)
@@ -87,7 +89,7 @@ class LeggedManipulator(BaseTask):
 
     def _parse_cfg(self, cfg):
         self.dt = self.cfg.control.decimation * self.sim_params.dt
-        self.obs_scales = self.cfg.normalization.obs_scales
+        self.obs_scales = self.cfg.obs_scales
         self.reward_scales = vars(self.cfg.rewards.scales)
         self.arm_reward_scales = vars(self.cfg.rewards.arm_scales)
 
@@ -752,7 +754,7 @@ class LeggedManipulator(BaseTask):
                                                  max_restitution - min_restitution) + min_restitution
         if cfg.domain_rand.randomize_gripper_mass:
             gripper_rng_mass = cfg.domain_rand.gripper_added_mass_range
-            self.gripper_rand_mass[env_ids] = np.random.uniform(gripper_rng_mass[0], gripper_rng_mass[1], size=(1, ))
+            self.gripper_rand_mass[env_ids] = torch_rand_float(gripper_rng_mass[0], gripper_rng_mass[1], (len(env_ids), 1), device=self.device)
 
     def refresh_actor_rigid_shape_props(self, env_ids, cfg):
         for env_id in env_ids:
@@ -1293,38 +1295,116 @@ class LeggedManipulator(BaseTask):
     def _init_buffers(self):
         """ Initialize torch tensors which will contain simulation states and processed quantities
         """
+        self.action_scale = torch.tensor(self.cfg.control.action_scale, device=self.device)
+        # self.old_arm_actions = torch.zeros((self.num_envs, 6), device=self.device)
+
         # get gym GPU state tensors
         actor_root_state = self.gym.acquire_actor_root_state_tensor(self.sim)
         dof_state_tensor = self.gym.acquire_dof_state_tensor(self.sim)
         net_contact_forces = self.gym.acquire_net_contact_force_tensor(self.sim)
-        rigid_body_state = self.gym.acquire_rigid_body_state_tensor(self.sim)
+        rigid_body_state_tensor = self.gym.acquire_rigid_body_state_tensor(self.sim)
+        mass_matrix_tensor = self.gym.acquire_mass_matrix_tensor(self.sim, "robot_dog")
+        jacobian_tensor = self.gym.acquire_jacobian_tensor(self.sim, "robot_dog")
+        force_sensor_tensor = self.gym.acquire_force_sensor_tensor(self.sim)
+
         self.gym.refresh_dof_state_tensor(self.sim)
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
-        self.gym.render_all_camera_sensors(self.sim)
+        self.gym.refresh_mass_matrix_tensors(self.sim)
+        self.gym.refresh_jacobian_tensors(self.sim)
+        self.gym.refresh_force_sensor_tensor(self.sim)
 
         # create some wrapper tensors for different slices
-        self.root_states = gymtorch.wrap_tensor(actor_root_state)
+        self.force_sensor_tensor = gymtorch.wrap_tensor(force_sensor_tensor).view(self.num_envs, 4, 6)
+        self._root_states = gymtorch.wrap_tensor(actor_root_state).view(self.num_envs, 2, 13) # 2 actors
+        self.root_states = self._root_states[:, 0, :]
+        self.box_root_state = self._root_states[:, 1, :]
         self.dof_state = gymtorch.wrap_tensor(dof_state_tensor)
-        self.net_contact_forces = gymtorch.wrap_tensor(net_contact_forces)[:self.num_envs * self.num_bodies, :]
-        self.dof_pos = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 0]
-        self.base_pos = self.root_states[:self.num_envs, 0:3]
-        self.dof_vel = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 1]
-        self.base_quat = self.root_states[:self.num_envs, 3:7]
-        self.rigid_body_state = gymtorch.wrap_tensor(rigid_body_state)[:self.num_envs * self.num_bodies, :]
-        self.foot_velocities = self.rigid_body_state.view(self.num_envs, self.num_bodies, 13)[:,
-                               self.feet_indices,
-                               7:10]
-        self.foot_positions = self.rigid_body_state.view(self.num_envs, self.num_bodies, 13)[:, self.feet_indices,
-                              0:3]
-        self.prev_base_pos = self.base_pos.clone()
-        self.prev_foot_velocities = self.foot_velocities.clone()
+        self.dof_pos = self.dof_state.view(self.num_envs, self.num_dofs, 2)[..., 0]
+        self.dof_pos_wrapped = self.dof_pos.clone()
+        self.dof_pos_wo_gripper = self.dof_pos[:, :-2]
+        self.dof_pos_wo_gripper_wrapped = self.dof_pos_wo_gripper.clone()
+        self.dof_vel = self.dof_state.view(self.num_envs, self.num_dofs, 2)[..., 1]
+        self.dof_vel_wo_gripper = self.dof_vel[:, :-2]
+        self.base_quat = self.root_states[:, 3:7]
+        # self.yaw_ema = euler_from_quat(self.base_quat)[2]
+        base_yaw = euler_from_quat(self.base_quat)[2]
+        self.base_yaw_euler = torch.cat([torch.zeros(self.num_envs, 2, device=self.device), base_yaw.view(-1, 1)], dim=1)
+        self.base_yaw_quat = quat_from_euler_xyz(torch.tensor(0), torch.tensor(0), base_yaw)
 
-        self.lag_buffer = [torch.zeros_like(self.dof_pos) for i in range(self.cfg.domain_rand.lag_timesteps+1)]
+        self.obs_history_buf = torch.zeros(self.num_envs, self.cfg.env.history_len, self.cfg.env.num_proprio, device=self.device, dtype=torch.float)
+        self.action_history_buf = torch.zeros(self.num_envs, self.action_delay + 2, self.num_actions, device=self.device, dtype=torch.float)
 
-        self.contact_forces = gymtorch.wrap_tensor(net_contact_forces)[:self.num_envs * self.num_bodies, :].view(self.num_envs, -1,
-                                                                            3)  # shape: num_envs, num_bodies, xyz axis
+        self._contact_forces = gymtorch.wrap_tensor(net_contact_forces).view(self.num_envs, self.num_bodies + 1, 3) # shape: num_envs, num_bodies, xyz axis
+        self.contact_forces = self._contact_forces[:, :-1, :]
+        self.box_contact_force = self._contact_forces[:, -1, :]
+
+        self._rigid_body_state = gymtorch.wrap_tensor(rigid_body_state_tensor).view(self.num_envs, self.num_bodies + 1, 13)
+        self.rigid_body_state = self._rigid_body_state[:, :-1, :]
+        self.box_rigid_body_state = self._rigid_body_state[:, -1, :]
+
+        self.mm_whole = gymtorch.wrap_tensor(mass_matrix_tensor)
+        self.jacobian_whole = gymtorch.wrap_tensor(jacobian_tensor)
+
+        # ee info
+        self.ee_pos = self.rigid_body_state[:, self.gripper_idx, :3]
+        self.ee_orn = self.rigid_body_state[:, self.gripper_idx, 3:7]
+        self.ee_vel = self.rigid_body_state[:, self.gripper_idx, 7:]
+        self.ee_j_eef = self.jacobian_whole[:, self.gripper_idx, :6, -8:-2]
+        self.mm = self.mm_whole[:, -8:-2, -8:-2]
+        self.arm_osc_kp = torch.tensor(self.cfg.arm.osc_kp, device=self.device, dtype=torch.float)
+        self.arm_osc_kd = torch.tensor(self.cfg.arm.osc_kd, device=self.device, dtype=torch.float)
+
+        # box info & target_ee info
+        self.box_pos = self.box_root_state[:, 0:3]
+        self.down_dir = torch.tensor([0, 0, -1], device=self.device, dtype=torch.float).view(3, 1)
+        self.ee_orn_des = torch.tensor([ 0, 0.7071068, 0, 0.7071068 ], device=self.device).repeat((self.num_envs, 1))
+        self.grasp_offset = self.cfg.arm.grasp_offset
+        self.init_target_ee_base = torch.tensor(self.cfg.arm.init_target_ee_base, device=self.device).unsqueeze(0)
+
+        ## generate target ee
+        # self.update_target_ee_base()
+        # self.target_ee_base_clipped = torch.zeros(self.num_envs, 3, dtype=torch.float, device=self.device, requires_grad=False)
+        # self.target_ee_base_clipped[:, 0] = 0.15
+        # self.target_ee_base_clipped[:, 2] = 0.15
+        self.traj_timesteps = torch_rand_float(self.cfg.goal_ee.traj_time[0], self.cfg.goal_ee.traj_time[1], (self.num_envs, 1), device=self.device).squeeze() / self.dt
+        self.traj_total_timesteps = self.traj_timesteps + torch_rand_float(self.cfg.goal_ee.hold_time[0], self.cfg.goal_ee.hold_time[1], (self.num_envs, 1), device=self.device).squeeze() / self.dt
+        self.goal_timer = torch.zeros(self.num_envs, device=self.device)
+        self.ee_start_sphere = torch.zeros(self.num_envs, 3, device=self.device)
+        self.ee_goal_cart = torch.zeros(self.num_envs, 3, device=self.device)
+        self.ee_goal_sphere = torch.zeros(self.num_envs, 3, device=self.device)
+        self.ee_goal_delta_orn_euler = torch.zeros(self.num_envs, 3, device=self.device)
+        self.ee_goal_orn_euler = torch.zeros(self.num_envs, 3, device=self.device)
+        self.curr_ee_goal_cart = torch.zeros(self.num_envs, 3, device=self.device)
+        self.curr_ee_goal_sphere = torch.zeros(self.num_envs, 3, device=self.device)
+        self.collision_lower_limits = torch.tensor(self.cfg.goal_ee.collision_lower_limits, device=self.device, dtype=torch.float)
+        self.collision_upper_limits = torch.tensor(self.cfg.goal_ee.collision_upper_limits, device=self.device, dtype=torch.float)
+        self.underground_limit = self.cfg.goal_ee.underground_limit
+        self.num_collision_check_samples = self.cfg.goal_ee.num_collision_check_samples
+        self.collision_check_t = torch.linspace(0, 1, self.num_collision_check_samples, device=self.device)[None, None, :]
+        assert(self.cfg.goal_ee.command_mode in ['cart', 'sphere'])
+        if self.cfg.goal_ee.command_mode == 'cart':
+            self.curr_ee_goal = self.curr_ee_goal_cart
+        else:
+            self.curr_ee_goal = self.curr_ee_goal_sphere
+        self.sphere_error_scale = torch.tensor(self.cfg.goal_ee.sphere_error_scale, device=self.device)
+        self.orn_error_scale = torch.tensor(self.cfg.goal_ee.orn_error_scale, device=self.device)
+        self.arm_base_overhead = torch.tensor([0., 0., 0.165], device=self.device)
+        self.z_invariant_offset = torch.tensor([0.53], device=self.device).repeat(self.num_envs, 1)
+
+        print('------------------------------------------------------')
+        print(f'root_states shape: {self.root_states.shape}')
+        print(f'dof_state shape: {self.dof_state.shape}')
+        print(f'force_sensor_tensor shape: {self.force_sensor_tensor.shape}')
+        print(f'contact_forces shape: {self.contact_forces.shape}')
+        print(f'rigid_body_state shape: {self.rigid_body_state.shape}')
+        print(f'mm_whole shape: {self.mm_whole.shape}')
+        print(f'jacobian_whole shape: {self.jacobian_whole.shape}')
+        print(f'box_root_state shape: {self.box_root_state.shape}')
+        print(f'box_contact_force shape: {self.box_contact_force.shape}')
+        print(f'box_rigid_body_state shape: {self.box_rigid_body_state.shape}')
+        print('------------------------------------------------------')
 
         # initialize some data used later on
         self.common_step_counter = 0
@@ -1374,6 +1454,9 @@ class LeggedManipulator(BaseTask):
         self.desired_contact_states = torch.zeros(self.num_envs, 4, dtype=torch.float, device=self.device,
                                                   requires_grad=False, )
 
+        # self.target_ee = torch.zeros(self.num_envs, self.cfg.target_ee.num_commands, dtype=torch.float, device=self.device, requires_grad=False) # ee x, ee y, ee z
+        self.gripper_torques_zero = torch.zeros(self.num_envs, 2, device=self.device)
+
 
         self.feet_air_time = torch.zeros(self.num_envs, self.feet_indices.shape[0], dtype=torch.float,
                                          device=self.device, requires_grad=False)
@@ -1404,6 +1487,16 @@ class LeggedManipulator(BaseTask):
                 if self.cfg.control.control_type in ["P", "V"]:
                     print(f"PD gain of joint {name} were not defined, setting them to zero")
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
+
+        link_mass = torch.zeros(1, 9, dtype=torch.float, device=self.device)
+        for j, prop in enumerate(self.gym.get_actor_rigid_body_properties(self.envs[0], 0)[-9:]):
+            link_mass[0, j] = prop.mass
+        self.link_mass = link_mass.repeat((self.num_envs, 1))
+        g = torch.zeros(self.num_envs, 9, 6, 1, dtype=torch.float, device=self.device)
+        g[:, :, 2, :] = 9.81
+        self.g_force = self.link_mass.unsqueeze(-1).unsqueeze(-1) * g
+
+        self._get_init_start_ee_sphere()
 
         if self.cfg.control.control_type == "actuator_net":
             actuator_path = f'{os.path.dirname(os.path.dirname(os.path.realpath(__file__)))}/../../resources/actuator_nets/unitree_b1.pt'
@@ -1465,6 +1558,7 @@ class LeggedManipulator(BaseTask):
                                                    requires_grad=False)
         self.halftime_clock_inputs = torch.zeros(self.num_envs, 4, dtype=torch.float, device=self.device,
                                                  requires_grad=False)
+        self.gripper_rand_mass = torch.zeros(self.num_envs, 1, dtype=torch.float, device=self.device, requires_grad=False)
 
     def _init_command_distribution(self, env_ids):
         # new style curriculum
@@ -1885,7 +1979,7 @@ class LeggedManipulator(BaseTask):
     def _parse_cfg(self, cfg):
         self.dt = self.cfg.control.decimation * self.sim_params.dt
         self.obs_scales = self.cfg.obs_scales
-        self.reward_scales = vars(self.cfg.reward_scales)
+        self.reward_scales = vars(self.cfg.rewards.scales)
         self.curriculum_thresholds = vars(self.cfg.curriculum_thresholds)
         cfg.command_ranges = vars(cfg.commands)
         if cfg.terrain.mesh_type not in ['heightfield', 'trimesh']:

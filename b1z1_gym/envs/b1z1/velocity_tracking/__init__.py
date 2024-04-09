@@ -1,20 +1,13 @@
-import time
-import numpy as np
-import os
-
-from isaacgym.torch_utils import *
-from isaacgym import gymtorch, gymapi, gymutil
-
-from b1z1_gym.utils.math_utils import quat_apply_yaw, wrap_to_pi, torch_rand_sqrt_float
-
+from isaacgym import gymutil, gymapi
 import torch
-# from torch.tensor import Tensor
-from typing import Tuple, Dict
+from params_proto import Meta
+from typing import Union
 
-from b1z1_gym.envs.base.legged_manipulator import LeggedManipulator
-from b1z1_gym.envs.base.legged_manipulator_config import LeggedManipulatorCfg as Cfg
+from b1z1_gym.envs.base.legged_robot import LeggedRobot
+from b1z1_gym.envs.base.legged_robot_config import Cfg
 
-class VelocityTrackingEasyEnv(LeggedManipulator):
+
+class VelocityTrackingEasyEnv(LeggedRobot):
     def __init__(self, sim_device, headless, num_envs=None, prone=False, deploy=False,
                  cfg: Cfg = None, eval_cfg: Cfg = None, initial_dynamics_dict=None, physics_engine="SIM_PHYSX"):
 
@@ -54,3 +47,4 @@ class VelocityTrackingEasyEnv(LeggedManipulator):
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
         obs, _, _, _ = self.step(torch.zeros(self.num_envs, self.num_actions, device=self.device, requires_grad=False))
         return obs
+

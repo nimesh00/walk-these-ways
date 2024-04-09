@@ -1,5 +1,6 @@
 
 from .base_config import BaseConfig
+from params_proto import PrefixProto, ParamsProto
 
 class LeggedManipulatorCfg(BaseConfig):
     class env:
@@ -189,7 +190,7 @@ class LeggedManipulatorCfg(BaseConfig):
             stance_width_range = [0.0, 0.01]
             stance_length_range = [0.0, 0.01]
     
-    class curriculum_thresholds(cli=False):
+    class curriculum_thresholds:
         tracking_lin_vel = 0.8  # closer to 1 is tighter
         tracking_ang_vel = 0.5
         tracking_contacts_shaped_force = 0.8  # closer to 1 is tighter
@@ -242,14 +243,17 @@ class LeggedManipulatorCfg(BaseConfig):
         friction_range = [0.5, 1.25]  # increase range
         randomize_restitution = False
         restitution_range = [0, 1.0]
-        randomize_base_mass = False
-        # add link masses, increase range, randomize inertia, randomize joint properties
-        added_mass_range = [-1., 1.]
-        randomize_com_displacement = False
-        # add link masses, increase range, randomize inertia, randomize joint properties
-        com_displacement_range = [-0.15, 0.15]
-        randomize_motor_strength = False
-        motor_strength_range = [0.9, 1.1]
+        
+        randomize_base_mass = True
+        added_mass_range = [-0.5, 2.5]
+        randomize_base_com = True
+        added_com_range_x = [-0.15, 0.15]
+        added_com_range_y = [-0.15, 0.15]
+        added_com_range_z = [-0.15, 0.15]
+        randomize_motor = True
+        leg_motor_strength_range = [0.7, 1.3]
+        arm_motor_strength_range = [0.7, 1.3]
+
         randomize_Kp_factor = False
         Kp_factor_range = [0.8, 1.3]
         randomize_Kd_factor = False
@@ -263,6 +267,11 @@ class LeggedManipulatorCfg(BaseConfig):
         max_push_vel_xy = 1.
         randomize_lag_timesteps = True
         lag_timesteps = 6
+
+        randomize_gripper_mass = True
+        gripper_added_mass_range = [0, 0.1]
+
+        cube_y_range = [0.2, 0.4]
 
     class rewards:
         only_positive_rewards = True  # if true negative total rewards are clipped at zero (avoids early termination problems)
@@ -352,27 +361,27 @@ class LeggedManipulatorCfg(BaseConfig):
         gravity_range = [-1.0, 1.0]
         motion = [-0.01, 0.01]
     
-        class obs_scales(PrefixProto, cli=False):
-            lin_vel = 2.0
-            ang_vel = 0.25
-            dof_pos = 1.0
-            dof_vel = 0.05
-            imu = 0.1
-            height_measurements = 5.0
-            friction_measurements = 1.0
-            body_height_cmd = 2.0
-            gait_phase_cmd = 1.0
-            gait_freq_cmd = 1.0
-            footswing_height_cmd = 0.15
-            body_pitch_cmd = 0.3
-            body_roll_cmd = 0.3
-            aux_reward_cmd = 1.0
-            compliance_cmd = 1.0
-            stance_width_cmd = 1.0
-            stance_length_cmd = 1.0
-            segmentation_image = 1.0
-            rgb_image = 1.0
-            depth_image = 1.0
+    class obs_scales:
+        lin_vel = 2.0
+        ang_vel = 0.25
+        dof_pos = 1.0
+        dof_vel = 0.05
+        imu = 0.1
+        height_measurements = 5.0
+        friction_measurements = 1.0
+        body_height_cmd = 2.0
+        gait_phase_cmd = 1.0
+        gait_freq_cmd = 1.0
+        footswing_height_cmd = 0.15
+        body_pitch_cmd = 0.3
+        body_roll_cmd = 0.3
+        aux_reward_cmd = 1.0
+        compliance_cmd = 1.0
+        stance_width_cmd = 1.0
+        stance_length_cmd = 1.0
+        segmentation_image = 1.0
+        rgb_image = 1.0
+        depth_image = 1.0
 
     class noise:
         add_noise = True
@@ -397,13 +406,13 @@ class LeggedManipulatorCfg(BaseConfig):
         pos = [10, 0, 6]  # [m]
         lookat = [11., 5, 3.]  # [m]
 
-    class sim:
+    class sim(PrefixProto, cli=False):
         dt =  0.005
         substeps = 1
         gravity = [0., 0. ,-9.81]  # [m/s^2]
         up_axis = 1  # 0 is y, 1 is z
 
-        class physx:
+        class physx(PrefixProto, cli=False):
             num_threads = 10
             solver_type = 1  # 0: pgs, 1: tgs
             num_position_iterations = 4

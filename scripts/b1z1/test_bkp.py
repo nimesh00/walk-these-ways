@@ -6,16 +6,15 @@ import torch
 from tqdm import trange
 
 from b1z1_gym.envs import *
-from b1z1_gym.envs.base.legged_robot_config import Cfg
-from b1z1_gym.envs.b1z1.b1z1_config import config_b1z1
-from b1z1_gym.envs.b1z1.velocity_tracking import VelocityTrackingEasyEnv
+from b1z1_gym.envs.base.legged_manipulator_config import LeggedManipulatorCfg as Cfg
+from b1z1_gym.envs.b1z1.b1z1_config import b1z1_config
+from b1z1_gym.envs.b1z1.b1z1 import VelocityTrackingEasyEnv
 
 
 def run_env(render=False, headless=False):
     # prepare environment
-    config_b1z1(Cfg)
+    b1z1_config(Cfg)
 
-    Cfg.env.num_actions = 18
     Cfg.commands.num_lin_vel_bins = 30
     Cfg.commands.num_ang_vel_bins = 30
     Cfg.curriculum_thresholds.tracking_ang_vel = 0.7
@@ -69,7 +68,7 @@ def run_env(render=False, headless=False):
 
     Cfg.env.num_privileged_obs = 3
     Cfg.env.num_observation_history = 30
-    Cfg.reward_scales.feet_contact_forces = 0.0
+    Cfg.rewards.scales.feet_contact_forces = 0.0
 
     Cfg.domain_rand.rand_interval_s = 4
     Cfg.commands.num_commands = 15
@@ -89,38 +88,38 @@ def run_env(render=False, headless=False):
 
     Cfg.commands.resampling_time = 10
 
-    Cfg.reward_scales.feet_slip = -0.04
-    Cfg.reward_scales.action_smoothness_1 = -0.1
-    Cfg.reward_scales.action_smoothness_2 = -0.1
-    Cfg.reward_scales.dof_vel = -1e-4
-    Cfg.reward_scales.dof_pos = -0.05
-    Cfg.reward_scales.jump = 10.0
-    Cfg.reward_scales.base_height = 0.0
+    Cfg.rewards.scales.feet_slip = -0.04
+    Cfg.rewards.scales.action_smoothness_1 = -0.1
+    Cfg.rewards.scales.action_smoothness_2 = -0.1
+    Cfg.rewards.scales.dof_vel = -1e-4
+    Cfg.rewards.scales.dof_pos = -0.05
+    Cfg.rewards.scales.jump = 10.0
+    Cfg.rewards.scales.base_height = 0.0
     Cfg.rewards.base_height_target = 0.30
-    Cfg.reward_scales.estimation_bonus = 0.0
+    Cfg.rewards.scales.estimation_bonus = 0.0
 
-    Cfg.reward_scales.feet_impact_vel = -0.0
+    Cfg.rewards.scales.feet_impact_vel = -0.0
 
     # rewards.footswing_height = 0.09
-    Cfg.reward_scales.feet_clearance = -0.0
-    Cfg.reward_scales.feet_clearance_cmd = -15.
+    Cfg.rewards.scales.feet_clearance = -0.0
+    Cfg.rewards.scales.feet_clearance_cmd = -15.
 
-    # reward_scales.feet_contact_forces = -0.01
+    # rewards.scales.feet_contact_forces = -0.01
 
     Cfg.rewards.reward_container_name = "CoRLRewards"
     Cfg.rewards.only_positive_rewards = False
     Cfg.rewards.only_positive_rewards_ji22_style = True
     Cfg.rewards.sigma_rew_neg = 0.02
 
-    Cfg.reward_scales.hop_symmetry = 0.0
+    Cfg.rewards.scales.hop_symmetry = 0.0
     Cfg.rewards.kappa_gait_probs = 0.07
     Cfg.rewards.gait_force_sigma = 100.
     Cfg.rewards.gait_vel_sigma = 10.
 
-    Cfg.reward_scales.tracking_contacts_shaped_force = 4.0
-    Cfg.reward_scales.tracking_contacts_shaped_vel = 4.0
+    Cfg.rewards.scales.tracking_contacts_shaped_force = 4.0
+    Cfg.rewards.scales.tracking_contacts_shaped_vel = 4.0
 
-    Cfg.reward_scales.collision = -5.0
+    Cfg.rewards.scales.collision = -5.0
 
     Cfg.commands.lin_vel_x = [-1.0, 1.0]
     Cfg.commands.lin_vel_y = [-0.6, 0.6]
@@ -133,10 +132,10 @@ def run_env(render=False, headless=False):
     Cfg.commands.gait_duration_cmd_range = [0.5, 0.5]
     Cfg.commands.footswing_height_range = [0.03, 0.25]
 
-    Cfg.reward_scales.lin_vel_z = -0.02
-    Cfg.reward_scales.ang_vel_xy = -0.001
-    Cfg.reward_scales.base_height = 0.0
-    Cfg.reward_scales.feet_air_time = 0.0
+    Cfg.rewards.scales.lin_vel_z = -0.02
+    Cfg.rewards.scales.ang_vel_xy = -0.001
+    Cfg.rewards.scales.base_height = 0.0
+    Cfg.rewards.scales.feet_air_time = 0.0
 
     Cfg.commands.limit_vel_x = [-5.0, 5.0]
     Cfg.commands.limit_vel_y = [-0.6, 0.6]

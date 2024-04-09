@@ -4,12 +4,19 @@
 <!-- |    EDITING THIS FILE BY HAND IS NOT RECOMMENDED                                 | -->
 <!-- =================================================================================== -->
 <robot name="b1z1_description">
-  <!-- <link name="world"/>
+
+  <mujoco>
+    <compiler 
+    meshdir="../meshes/"
+    discardvisual="false"
+  />
+  </mujoco>
+  <link name="world"/>
   <joint name="floating_base" type="floating">
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <parent link="world"/>
     <child link="base"/>
-  </joint> -->
+  </joint>
     <material name="black">
     <color rgba="0.0 0.0 0.0 1.0"/>
   </material>
@@ -39,15 +46,15 @@
   </material>
 
   <link name="base">
-    <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <box size="0.001 0.001 0.001"/>
-      </geometry>
-    </visual>
-  </link>
+      <visual>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <box size="0.001 0.001 0.001"/>
+        </geometry>
+      </visual>
+    </link>
     
-    <joint name="floating_base" type="fixed" dont_collapse="true">
+    <joint name="floating_base" type="fixed">
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <parent link="base"/>
       <child link="trunk"/>
@@ -74,7 +81,7 @@
     </inertial>
   </link>
   
-  <joint name="imu_joint" type="fixed" dont_collapse="true">
+  <joint name="imu_joint" type="fixed">
     <parent link="trunk"/>
     <child link="imu_link"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -905,7 +912,23 @@
     </contact>
   </link>
 
-  <joint name="base_arm_joint" type="fixed" dont_collapse="true">
+  <!-- <gazebo>
+    <plugin filename="libgazebo_ros_control.so" name="gazebo_ros_control">
+      <robotNamespace>/z1_gazebo</robotNamespace>
+      <robotSimType>gazebo_ros_control/DefaultRobotHWSim</robotSimType>
+    </plugin>
+  </gazebo>
+  <gazebo reference="link04">
+    <self_collide>true</self_collide>
+  </gazebo>
+  <gazebo reference="link05">
+    <self_collide>true</self_collide>
+  </gazebo>
+  <gazebo reference="link06">
+    <self_collide>true</self_collide>
+  </gazebo> -->
+  <!-- <link name="world"/> -->
+  <joint name="base_arm_joint" type="fixed">
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <parent link="base"/>
     <child link="link00"/>
@@ -1097,18 +1120,6 @@
       <inertia ixx="0.00018328" ixy="1.22e-06" ixz="5.4e-07" iyy="0.0001475" iyz="8e-08" izz="0.0001468"/>
     </inertial>
   </link>
-  <link name="ee_gripper_link">
-    <inertial>
-      <mass value="0.001"/>
-      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
-    </inertial>
-  </link>
-  <joint name="ee_gripper" type="fixed" dont_collapse="true">
-    <axis xyz="1 0 0"/>
-    <origin rpy="0 0 0" xyz="0.0 0 0"/>
-    <parent link="link06"/>
-    <child link="ee_gripper_link"/>
-  </joint>
   <!-- <transmission name="JointTrans1">
     <type>transmission_interface/SimpleTransmission</type>
     <joint name="joint1">
