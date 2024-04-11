@@ -2,34 +2,18 @@ from typing import Union
 
 from params_proto import Meta
 
-from b1z1_gym.envs.base.legged_robot_config import Cfg
+from m2_gym.envs.base.legged_robot_config import Cfg
 
 
-def config_b1z1(Cnfg: Union[Cfg, Meta]):
+def config_m2(Cnfg: Union[Cfg, Meta]):
     _ = Cnfg.init_state
 
-    _.pos = [0.0, 0.0, 0.8]  # x,y,z [m]
-    # _.default_joint_angles = {  # = target angles [rad] when action = 0.0
-    #     'FL_hip_joint': 0.13,  # [rad]
-    #     'RL_hip_joint': 0.13,  # [rad]
-    #     'FR_hip_joint': -0.13,  # [rad]
-    #     'RR_hip_joint': -0.13,  # [rad]
-
-    #     'FL_thigh_joint': 0.66,  # [rad]
-    #     'RL_thigh_joint': 0.66,  # [rad]
-    #     'FR_thigh_joint': 0.66,  # [rad]
-    #     'RR_thigh_joint': 0.66,  # [rad]
-
-    #     'FL_calf_joint': -1.36,  # [rad]
-    #     'RL_calf_joint': -1.36,  # [rad]
-    #     'FR_calf_joint': -1.36,  # [rad]
-    #     'RR_calf_joint': -1.36  # [rad]
-    # }
+    _.pos = [0.0, 0.0, 0.34]  # x,y,z [m]
     _.default_joint_angles = {  # = target angles [rad] when action = 0.0
-        'FL_hip_joint': 0.2,  # [rad]
-        'RL_hip_joint': 0.2,  # [rad]
-        'FR_hip_joint': -0.2,  # [rad]
-        'RR_hip_joint': -0.2,  # [rad]
+        'FL_hip_joint': 0.1,  # [rad]
+        'RL_hip_joint': 0.1,  # [rad]
+        'FR_hip_joint': -0.1,  # [rad]
+        'RR_hip_joint': -0.1,  # [rad]
 
         'FL_thigh_joint': 0.8,  # [rad]
         'RL_thigh_joint': 1.,  # [rad]
@@ -37,21 +21,15 @@ def config_b1z1(Cnfg: Union[Cfg, Meta]):
         'RR_thigh_joint': 1.,  # [rad]
 
         'FL_calf_joint': -1.5,  # [rad]
-        'RL_calf_joint': -1.6,  # [rad]
+        'RL_calf_joint': -1.5,  # [rad]
         'FR_calf_joint': -1.5,  # [rad]
-        'RR_calf_joint': -1.6,  # [rad]
-
-        'joint1': 0.0,  # [rad]
-        'joint2': 0.0,  # [rad]
-        'joint3': 0.0,  # [rad]
-        'joint4': 0.0,  # [rad]
-        'joint5': 0.0,  # [rad]
-        'joint6': 0.0,  # [rad]
+        'RR_calf_joint': -1.5  # [rad]
     }
+
     _ = Cnfg.control
     _.control_type = 'P'
-    _.stiffness = {'joint': 200.}  # [N*m/rad]
-    _.damping = {'joint': 50}  # [N*m*s/rad]
+    _.stiffness = {'joint': 20.}  # [N*m/rad]
+    _.damping = {'joint': 0.5}  # [N*m*s/rad]
     # action scale: target angle = actionScale * action + defaultAngle
     _.action_scale = 0.25
     _.hip_scale_reduction = 0.5
@@ -59,21 +37,20 @@ def config_b1z1(Cnfg: Union[Cfg, Meta]):
     _.decimation = 4
 
     _ = Cnfg.asset
-    _.file = '{MINI_GYM_ROOT_DIR}/resources/robots/b1z1/urdf/b1z1.urdf'
+    _.file = '{MINI_GYM_ROOT_DIR}/resources/robots/m2/urdf/m2_description.urdf'
     _.foot_name = "foot"
     _.penalize_contacts_on = ["thigh", "calf"]
-    _.terminate_after_contacts_on = ["base"]
-    # _.terminate_after_contacts_on = ["base", "link01", "link02", "link03", "link04", "link05", "link06"]
+    _.terminate_after_contacts_on = ["base", "Head_lower", "Head_upper"]
     _.self_collisions = 0  # 1 to disable, 0 to enable...bitwise filter
-    _.flip_visual_attachments = False
+    _.flip_visual_attachments = True
     _.fix_base_link = False
 
     _ = Cnfg.rewards
     _.soft_dof_pos_limit = 0.9
-    _.base_height_target = 0.55
+    _.base_height_target = 0.34
 
     _ = Cnfg.reward_scales
-    _.torques = -0.0001/8
+    _.torques = -0.0001
     _.action_rate = -0.01
     _.dof_pos_limits = -10.0
     _.orientation = -5.
@@ -90,9 +67,9 @@ def config_b1z1(Cnfg: Union[Cfg, Meta]):
     _.curriculum = False
 
     _ = Cnfg.env
-    _.num_observations = 42 + 24
+    _.num_observations = 42
     _.observe_vel = False
-    _.num_envs = 4096
+    _.num_envs = 4000
 
     _ = Cnfg.commands
     _.lin_vel_x = [-1.0, 1.0]
